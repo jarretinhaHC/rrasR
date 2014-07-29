@@ -3,9 +3,12 @@ library(rgdal)
 library(maptools)
 library(rgeos)
 
-setScale(1e+12)
+setScale(1e+15)
 
-wb <- loadWorkbook('../ref_data/Regiões_SP.xls')
+ref_data_path <- '/data/Brazil/ref_data/'
+ref_data_path <- '/data/Brazil/ref_data/'
+ref_data_filename <- 'Regiões_SP.xls'
+wb <- loadWorkbook(paste0(ref_data_path, ref_data_filename))
 data <- readWorksheet(wb, 'Regiões', check.names=FALSE)
 reg_list <- unique(data$'NOME_REG_SAUDE')
 
@@ -13,7 +16,9 @@ df <- aggregate(x=data[c('MASCULINO', 'FEMININO', 'TOTAL')], by=list(data$'NOME_
 rownames(df) <- df[, 1]
 df[, 1] <- c()
 
-shp <- readOGR('/home/jarretinha/dev/cnme/maps/sp/', '35MUE250GC_SIR', encoding='ISO8859-1', use_iconv=TRUE, stringsAsFactors=FALSE)
+p4s <- '+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs' 
+shapefiles_path <- '/data/Brazil/IBGE/malhas_digitais/municipio_2010/SE/SP/'
+shp <- readOGR(shapefiles_path, '35MUE250GC_SIR', encoding='ISO8859-1', use_iconv=TRUE, stringsAsFactors=FALSE)
 
 for(REG in reg_list){
 
@@ -23,6 +28,8 @@ for(REG in reg_list){
 }
 
 shp <- unionSpatialPolygons(shp, shp$ID)
+spdf <- SpatialPolygonsDataFrame(shp, df)
+writePolyShape(spdf, paste0(ref_data_path, 'REG_SAUDE_raw_spdf'))
 
 tmp <- c()
 for(p in shp@polygons){
@@ -34,10 +41,6 @@ for(p in shp@polygons){
 shp <- SpatialPolygons(tmp)
 
 # Useless line, here just to remember how to extract data using slots
-IDs <- sapply(slot(shp, 'polygons'), function(x) slot(x, 'ID'))
-df$clong <- coordinates(shp)[, 1]
-df$clat <- coordinates(shp)[, 2]
 spdf <- SpatialPolygonsDataFrame(shp, df)
-
-writePolyShape(spdf, 'REG_SAUDE_spdf')
+writePolyShape(spdf, paste0(ref_data_path, 'REG_SAUDE_cleaned_spdf'))
 
