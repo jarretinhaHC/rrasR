@@ -19,7 +19,11 @@ CNES_path <- '/data/Brazil/CNES/'
 CNES_filename <- 'cnes_sp_RRAS_uppercase.tsv'
 data <- read.delim(paste0(CNES_path, CNES_filename), sep='\t', as.is=TRUE, check.names=FALSE)
 
-data <- merge(data, ref_data, by.x='MUNICIPIO', by.y='MUNICÍPIO', all.y)
+data <- merge(data, ref_data, by.x='MUNICIPIO', by.y='MUNICÍPIO', all=TRUE)
+
+occupation <- 'MEDICO PATOLOGISTA'
+
+data <- data[data$ESPECIALIDADE == occupation, ]
 
 tmp <- list()
 tmp$'MUNICÍPIO' <- tapply(data$MUNICIPIO, data$CPF, list)
@@ -41,14 +45,14 @@ df <- na.omit(df)
 df$COUNTS <- cut(df$COUNTS, breaks=c(0:3, Inf), labels=c(1:3, '4+'))
 
 # Percentual
-plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(aes(y= (..count..)/sum(..count..) * 4), position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", breaks=seq(0, 1, 0.05), labels=percent) + scale_fill_brewer(name='Tipo de região', palette='Set3') + scale_x_discrete('Contagem') + ggtitle('Regiões administrativas ocupadas\npor profissional')
-pdf('Ocupação - percentual.pdf', height=8, width=8)
+plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(aes(y= (..count..)/sum(..count..) * 4), position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", breaks=seq(0, 1, 0.05), labels=percent) + scale_fill_brewer(name='Tipo de região', palette='Set3') + scale_x_discrete('Contagem') + ggtitle(paste(occupation, 'Regiões administrativas ocupadas\npor profissional', sep='\n'))
+pdf(paste0('Ocupação - ', occupation, ' - percentual.pdf'), height=8, width=8)
 print(plt)
 dev.off()
 
 # Counts
-plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", breaks=seq(0, 1e5, 5e3)) + scale_fill_brewer(name='Região administrativa', palette='Set3') + scale_x_discrete('Contagem') +  ggtitle('Regiões administrativas ocupadas\npor profissional')
-pdf('Ocupação - contagem.pdf', height=8, width=8)
+plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais") + scale_fill_brewer(name='Região administrativa', palette='Set3') + scale_x_discrete('Contagem') +  ggtitle(paste(occupation, 'Regiões administrativas ocupadas\npor profissional', sep='\n'))
+pdf(paste0('Ocupação - ', occupation, ' - contagem.pdf'), height=8, width=8)
 print(plt)
 dev.off()
 
@@ -78,15 +82,15 @@ df$COUNTS <- cut(df$COUNTS, breaks=c(0:3, Inf), labels=c(1:3, '4+'))
 # Percentual
 df1 <- melt(ddply(df,.(REG),function(x){prop.table(table(x$COUNTS))}),id.vars = 1)
 
-plt <- ggplot(data=df1, aes(x=variable, y=value, fill=REG)) + geom_bar(stat='identity', position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", labels=percent) + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem') + ggtitle('Municípios ocupados por profissional por Região de Saúde\n') + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
-pdf('Ocupação por Região de Saúde - percentual.pdf', height=18, width=18)
+plt <- ggplot(data=df1, aes(x=variable, y=value, fill=REG)) + geom_bar(stat='identity', position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", labels=percent) + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem') + ggtitle(paste(occupation, 'Municípios ocupados por profissional por Região de Saúde\n', sep='\n')) + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
+pdf(paste0('Ocupação por Região de Saúde - ', occupation, ' - percentual.pdf'), height=18, width=18)
 print(plt)
 dev.off()
 
 # Contagem
 
-plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais") + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem', drop=FALSE) + ggtitle('Municípios ocupados por profissional por Região de Saúde\n') + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
-pdf('Ocupação por Região de Saúde - contagem.pdf', height=18, width=18)
+plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais") + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem', drop=FALSE) + ggtitle(paste(occupation, 'Municípios ocupados por profissional por Região de Saúde\n', sep='\n')) + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
+pdf(paste0('Ocupação por Região de Saúde - ', occupation, '- contagem.pdf'), height=18, width=18)
 print(plt)
 dev.off()
 
@@ -116,15 +120,15 @@ df$COUNTS <- cut(df$COUNTS, breaks=c(0:3, Inf), labels=c(1:3, '4+'))
 # Percentual
 df1 <- melt(ddply(df,.(REG),function(x){prop.table(table(x$COUNTS))}),id.vars = 1)
 
-plt <- ggplot(data=df1, aes(x=variable, y=value, fill=REG)) + geom_bar(stat='identity', position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", labels=percent) + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem') + ggtitle('Municípios ocupados por profissional por DRS\n') + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
-pdf('Ocupação por DRS - percentual.pdf', height=12, width=12)
+plt <- ggplot(data=df1, aes(x=variable, y=value, fill=REG)) + geom_bar(stat='identity', position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", labels=percent) + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem') + ggtitle(paste(occupation, 'Municípios ocupados por profissional por DRS\n', sep='\n')) + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
+pdf(paste0('Ocupação por DRS - ', occupation, ' - percentual.pdf'), height=12, width=12)
 print(plt)
 dev.off()
 
 # Contagem
 
-plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais") + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem', drop=FALSE) + ggtitle('Municípios ocupados por profissional por DRS\n') + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
-pdf('Ocupação por DRS - contagem.pdf', height=18, width=18)
+plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais") + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem', drop=FALSE) + ggtitle(paste(occupation, 'Municípios ocupados por profissional por DRS\n', sep='\n')) + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
+pdf(paste0('Ocupação por DRS - ', occupation, ' - contagem.pdf'), height=18, width=18)
 print(plt)
 dev.off()
 
@@ -154,15 +158,15 @@ df$COUNTS <- cut(df$COUNTS, breaks=c(0:3, Inf), labels=c(1:3, '4+'))
 # Percentual
 df1 <- melt(ddply(df,.(REG),function(x){prop.table(table(x$COUNTS))}),id.vars = 1)
 
-plt <- ggplot(data=df1, aes(x=variable, y=value, fill=REG)) + geom_bar(stat='identity', position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", labels=percent) + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem') + ggtitle('Municípios ocupados por profissional por RRAS\n') + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
-pdf('Ocupação por RRAS - percentual.pdf', height=12, width=12)
+plt <- ggplot(data=df1, aes(x=variable, y=value, fill=REG)) + geom_bar(stat='identity', position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais", labels=percent) + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem') + ggtitle(paste(occupation, 'Municípios ocupados por profissional por RRAS\n', sep='\n')) + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
+pdf(paste0('Ocupação por RRAS - ', occupation, ' - percentual.pdf'), height=12, width=12)
 print(plt)
 dev.off()
 
 # Contagem
 
-plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais") + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem', drop=FALSE) + ggtitle('Municípios ocupados por profissional por RRAS\n') + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
-pdf('Ocupação por RRAS - contagem.pdf', height=18, width=18)
+plt <- ggplot(data=df, aes(COUNTS, fill=REG)) + geom_bar(position='dodge', binwidth=1, colour='black') + scale_y_continuous("Profissionais") + scale_fill_manual(name='Tipo de região', values=rep(brewer.pal(7,"Set3"), times=10)) + scale_x_discrete('Contagem', drop=FALSE) + ggtitle(paste(occupation, 'Municípios ocupados por profissional por RRAS\n', sep='\n')) + facet_wrap(~REG, scales='free') + theme(legend.position='', strip.text.x = element_text(size = 8))
+pdf(paste0('Ocupação por RRAS - ', occupation, ' - contagem.pdf'), height=18, width=18)
 print(plt)
 dev.off()
 
@@ -209,9 +213,9 @@ for(n in 1:length(distances_per_professional)){
 }
 
 df <- data.frame(CPF=names(distances_per_professional), DIST=unlist(distances_per_professional))
-plt <- ggplot(data=df, aes(DIST)) + geom_bar(aes(y=(..count..)/sum(..count..)), binwidth=10, colour='black', fill='red', alpha=0.5) + scale_y_continuous('Profissionais', labels=percent, breaks=seq(0, 1, 0.025)) + scale_x_continuous('Distância (km)', breaks=seq(0, 700, 50), limits=c(0, 600)) + ggtitle('Distância percorrida por profissional\n(estimativa geodésica)\n')
+plt <- ggplot(data=df, aes(DIST)) + geom_bar(aes(y=(..count..)/sum(..count..)), binwidth=10, colour='black', fill='red', alpha=0.5) + scale_y_continuous('Profissionais', labels=percent, breaks=seq(0, 1, 0.025)) + scale_x_continuous('Distância (km)', breaks=seq(0, 700, 50), limits=c(0, 600)) + ggtitle(paste(occupation, 'Distância percorrida por profissional\n(estimativa geodésica)\n', sep='\n'))
 
-pdf('Distância - percentual.pdf', height=8, width=8)
+pdf(paste0('Distância - ', occupation, ' - percentual.pdf'), height=8, width=8)
 print(plt)
 dev.off()
 

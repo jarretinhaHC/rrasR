@@ -9,22 +9,24 @@ library(ggmap)
 library(maptools)
 library(rgeos)
 
-setScale(1e+12)
+setScale(1e+15)
 map_center <- c(lon=-48.433700, lat=-22.070647)
 
-occupations_list <- (read.delim('/home/jarretinha/dev/cnme/ref_data/cbo.dat', sep='\t', check.names=FALSE, as.is=TRUE, header=FALSE))[,1]
-specialties_list <- (read.delim('/home/jarretinha/dev/cnme/ref_data/especialidades.dat', sep='\t', check.names=FALSE, as.is=TRUE, header=FALSE))[,1]
-program_data <- read.delim('/home/jarretinha/dev/cnme/R/programas_SP_with_coords.tsv', sep='\t', check.names=FALSE, as.is=TRUE)
-adequacy_data <- read.delim('/home/jarretinha/dev/cnme/ref_data/adequacy.dat', sep='\t', row.names=1, check.names=FALSE, as.is=TRUE)
+basedir <- '/data/Brazil/ref_data'
+
+occupations_list <- (read.delim(paste(basedir, 'cbo.dat', sep='/'), sep='\t', check.names=FALSE, as.is=TRUE, header=FALSE))[,1]
+specialties_list <- (read.delim(paste(basedir, 'especialidades.dat', sep='/'), sep='\t', check.names=FALSE, as.is=TRUE, header=FALSE))[,1]
+program_data <- read.delim(paste(basedir, 'programas_SP_with_coords.tsv', sep='/'), sep='\t', check.names=FALSE, as.is=TRUE)
+adequacy_data <- read.delim(paste(basedir, 'adequacy.dat', sep='/'), sep='\t', row.names=1, check.names=FALSE, as.is=TRUE)
 files <- Sys.glob('/home/jarretinha/dev/cnme/sheets/Profissionais/CNME - Profissionais por ocupação - Especialidades - PSA*')
 
-rras_wb <- loadWorkbook('../ref_data/Regiões_SP.xls')
+rras_wb <- loadWorkbook(paste(basedir, 'Regiões_SP.xls', sep='/'))
 rras_data <- readWorksheet(rras_wb, 'Regiões', check.names=FALSE)
 rras_list <- unique(rras_data$'NOME_RRAS')
 
 # Read cleaned spatial data
-spdf <- readShapePoly('RRAS_spdf');
-row.names(spdf@data) <- spdf@data$SP_ID;
+spdf <- readShapePoly(paste(basedir, 'RRAS_spdf', sep='/'))
+row.names(spdf@data) <- spdf@data$SP_ID
 
 # Create data frames
 by_specialty <- data.frame(row.names=specialties_list)
@@ -57,16 +59,23 @@ for(f in files){
 	
 }
 
+# Set occupation and specialty
+occupation <- 'MEDICO PSIQUIATRA'
+specialty <- 'PSIQUIATRIA'
+
 # ratio
 tmp <- as.matrix(ratio)
+scale_factor <- 10000
+m <- sprintf('%2.2f/%d hab', mean(unlist(ratio[occupation, ])) *
+             scale_factor, scale_factor)
+s <- sprintf('%2.2f/%d hab', sd(unlist(ratio[occupation, ])) *
+             scale_factor, scale_factor)
 tmp[tmp==Inf] <- 0
 tmp <- scale(t(tmp))
 tmp[tmp=='NaN'] <- 0
 ratio <- as.data.frame(tmp)
 ratio[, 'SP_ID'] <- rownames(ratio)
 
-occupation <- 'MEDICO ANESTESIOLOGISTA'
-specialty <- 'ANESTESIOLOGIA'
 
 specialty_programs <- program_data[program_data$NO_ESPECIALIDADE == specialty, ] 
 
@@ -79,11 +88,25 @@ ratio$id <- unique(df$id)
 
 df <- merge(df, ratio, by.y='id', all.x=TRUE)
 
-#nc <- get_map(location=map_center, zoom = 6, maptype = 'roadmap', color='bw')
-#plt <- ggmap(nc, extent='device')
+# Plot a beautiful map is and long, hard, tricky and quite repetitive art
+# Don't be lazy and separate each group of graphical elements on its own
 
-plt <- ggplot(data=df)
+# Load data and set coords
+plt <- ggplot(data=df) + coord_map()
 
+# Construct map on multiple steps to avoid complicated expression lines
+plt <- plt + geom_polygon(aes(x=long, y=lat, group=group, fill=cut(df[[occupation]], 11)), color='black', alpha=0.4, size=0.1)
+
+# Map non-textual annotations
+plt <- plt + geom_point(data=specialty_programs, aes(x=LON, y=LAT,
+                                                     color=as.factor(DS_NATUREZA)),
+                        size=5)
+plt <- plt + geom_point(data=specialty_programs, aes(x=LON, y=LAT),
+                        color='black',
+                        shape=1,
+                        size=5)
+
+# Map textual annotations
 ## RRAS with arrows
 
 # RRAS01
@@ -206,14 +229,43 @@ lx <- -45.30857
 ly <- -23.05213
 plt <- plt + annotate('text', label=labels['RRAS17', 'value'], x=lx, y=ly, fontsize=12)
 
-pdf('teste.pdf', height=24, width=24)
-print(plt)
-dev.off()
+# Google maps stuff
+#nc <- get_map(location=map_center, zoom = 6, maptype = 'watercolor')
+#plt <- plt + ggmap(nc, extent='device')
 
-#plt <- ggplot(data=spdf) + geom_polygon(data=spdf, aes(x=long, y=lat, group=group, color=spdf@data[[occupation]])) + scale_x_continuous(breaks = round(seq(-54, -43, by = 0.25), 2)) + scale_y_continuous(breaks = round(seq(-27, -19, by = 0.25), 2)) + coord_map()  + theme()
+# Scales
+txt_fill <- paste0(occupation,
+                   '\nz-score, especialista/hab',
+                   '\nMédia geral: ', m,
+                   '\nDesvio geral: ', s,
+                   '\n')
+txt_color <- 'Instituições com programa de residência na especialidade\n'
+plt <- plt + scale_color_brewer(txt_color, palette='Set3')
+plt <- plt + scale_fill_brewer(txt_fill, palette='RdYlGn')
+plt <- plt + scale_x_continuous(breaks = round(seq(-54, -43, by = 0.25), 2)) 
+plt <- plt + scale_y_continuous(breaks = round(seq(-27, -19, by = 0.25), 2))
+plt <- plt + scale_shape_discrete(guide=FALSE)
 
-plt <- plt + geom_polygon(data=df, aes(x=long, y=lat, group=group, fill=cut(df[[occupation]], 11)), color='black', alpha=0.4, size=0.1) + scale_fill_brewer(occupation, palette='RdYlGn') + theme_bw() + coord_map() + theme(panel.grid.minor=element_blank(), panel.grid.major=element_blank()) + theme(axis.ticks=element_blank(), axis.text.x=element_blank(), axis.text.y=element_blank(), panel.border=element_blank(), plot.margin=unit(c(0, 0, 0, 0), 'in')) + geom_point(data=specialty_programs, aes(x=LON, y=LAT, color=as.factor(DS_NATUREZA)), size=5) + labs(x='', y='') + scale_color_brewer('NATUREZA JURÍDICA', palette='Set3')
+# Labels
+plt <- plt + labs(x='', y='')
+title <- paste0(occupation, '\nDistribuição dos profissionais e locais de formação')
+plt <- plt + ggtitle(title)
+# Theme/Style
+plt <- plt + theme_bw()
 
+# Themes/Panel
+plt <- plt + theme(panel.grid.minor=element_blank(),
+                   panel.grid.major=element_blank(),
+                   panel.border=element_blank())
+# Theme/Axis
+plt <- plt + theme(axis.ticks=element_blank(),
+                   axis.text.x=element_blank(),
+                   axis.text.y=element_blank())
+# Theme/Plot
+plt <- plt + theme(plot.margin=unit(c(0, 0, 0, 0), 'in'))
+plt <- plt + theme(plot.title=element_text(face="bold", size=20))
+
+# Print and pray!
 pdf(paste('Densidade profissional - ', occupation, '.pdf', sep=''), height=24, width=24)
 print(plt)
 dev.off()
